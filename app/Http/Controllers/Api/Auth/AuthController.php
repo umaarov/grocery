@@ -208,7 +208,7 @@ class AuthController extends Controller
         }
     }
 
-    public function googleCallback(Request $request): RedirectResponse // Redirects back to FRONTEND
+    public function googleCallback(Request $request): RedirectResponse
     {
         try {
             $googleUser = Socialite::driver('google')->stateless()->user();
