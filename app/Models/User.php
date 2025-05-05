@@ -2,14 +2,14 @@
 
 namespace App\Models;
 
+use App\Services\EmailVerificationService;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
-class User extends Authenticatable
+class User extends Authenticatable implements MustVerifyEmail
 {
     use HasApiTokens, HasFactory, Notifiable;
 
@@ -27,16 +27,44 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
-        'google_id',
+        'email_verification_token',
     ];
 
-    protected $casts = [
-        'email_verified_at' => 'datetime',
-        'password' => 'hashed',
-    ];
-
-    final function refreshTokens(): HasMany
+    protected function casts(): array
     {
-        return $this->hasMany(RefreshToken::class);
+        return [
+            'email_verified_at' => 'datetime',
+            'password' => 'hashed',
+        ];
+    }
+
+    public function sendEmailVerificationNotification()
+    {
+        $verificationService = app(EmailVerificationService::class);
+
+        if (empty($this->email_verification_token)) {
+            $this->email_verification_token = $verificationService->generateToken();
+            $this->save();
+        }
+
+        $verificationService->sendVerificationEmail($this, true);
+    }
+
+    public function hasVerifiedEmail()
+    {
+        return !is_null($this->email_verified_at);
+    }
+
+    public function markEmailAsVerified()
+    {
+        return $this->forceFill([
+            'email_verified_at' => $this->freshTimestamp(),
+            'email_verification_token' => null,
+        ])->save();
+    }
+
+    public function getEmailForVerification()
+    {
+        return $this->email;
     }
 }
