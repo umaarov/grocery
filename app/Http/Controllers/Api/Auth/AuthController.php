@@ -60,19 +60,25 @@ class AuthController extends Controller
                 'trace' => $e->getTraceAsString()
             ]);
 
-            return response()->json(['message' => 'Registration failed. Please try again.'], 500);
+            return response()->json(['message' => 'Registration failed.', 'error' => $e->getMessage()], 500);
         }
     }
 
     public function verifyEmail(Request $request, $id, $token): JsonResponse
     {
         if (!$request->hasValidSignature()) {
-            return response()->json(['message' => 'Invalid or expired verification link.'], 401); // Or 403 Forbidden
+            Log::warning('Invalid signature for email verification', [
+                'id' => $id,
+                'token' => $token,
+                'url' => $request->fullUrl()
+            ]);
+            return response()->json(['message' => 'Invalid or expired verification link.'], 401);
         }
 
         $user = User::find($id);
 
         if (!$user) {
+            Log::warning('User not found during email verification', ['id' => $id]);
             return response()->json(['message' => 'User not found.'], 404);
         }
 
@@ -84,6 +90,10 @@ class AuthController extends Controller
             return response()->json(['message' => 'Email verified successfully! You can now log in.'], 200);
         }
 
+        Log::warning('Token mismatch during email verification', [
+            'user_id' => $user->id,
+            'provided_token' => $token
+        ]);
         return response()->json(['message' => 'Invalid verification token.'], 400);
     }
 
@@ -130,15 +140,16 @@ class AuthController extends Controller
 
             if (!$user->hasVerifiedEmail()) {
                 // Auth::logout();
-                return response()->json(['message' => 'Email not verified. Please check your email.'], 403); // 403 Forbidden
+                return response()->json(['message' => 'Email not verified. Please check your email.'], 403);
             }
 
-            // $user->tokens()->where('name', $request->device_name)->delete();
+            $user->tokens()->where('name', $request->device_name)->delete();
 
             $token = $user->createToken($request->device_name)->plainTextToken;
 
-            $user->makeHidden(['email_verification_token']);
+            Log::debug('Generated Token: ', ['token' => $token]);
 
+            $user->makeHidden(['email_verification_token']);
 
             return response()->json([
                 'message' => 'Logged in successfully!',
@@ -146,12 +157,12 @@ class AuthController extends Controller
                 'token_type' => 'Bearer',
                 'access_token' => $token,
             ], 200);
-
         } else {
             Log::warning('API Failed login attempt', ['email' => $request->email, 'ip' => $request->ip()]);
             return response()->json(['message' => 'Invalid login credentials.'], 401);
         }
     }
+
 
     public function logout(Request $request): JsonResponse
     {
