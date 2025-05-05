@@ -10,11 +10,11 @@ return [
         Sanctum::currentApplicationUrlWithPort()
     ))),
 
-    'guard' => ['sanctum'],
+    'guard' => ['web'],
 
-    'expiration' => 60 * 60,
+    'expiration' => null,
 
-    'token_prefix' => env('SANCTUM_TOKEN_PREFIX', ''),
+//    'token_prefix' => env('SANCTUM_TOKEN_PREFIX', ''),
 
     'middleware' => [
 //        'authenticate_session' => Laravel\Sanctum\Http\Middleware\AuthenticateSession::class,
@@ -22,12 +22,12 @@ return [
         'verify_csrf_token' => Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class,
 //        'validate_csrf_token' => Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class,
     ],
-    'cookie' => [
-        'name' => 'grocery_session',
-        'domain' => null,
-        'path' => '/',
-        'secure' => false,
-        'httponly' => true,
-        'samesite' => 'none',
-    ],
+//    'cookie' => [
+//        'name' => 'grocery_session',
+//        'domain' => null,
+//        'path' => '/',
+//        'secure' => false,
+//        'httponly' => true,
+//        'samesite' => 'none',
+//    ],
 ];

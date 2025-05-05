@@ -18,7 +18,11 @@ return Application::configure(basePath: dirname(__DIR__))
 //        $middleware->prepend(EnsureEmailIsVerified::class);
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        //
+        $exceptions->report(function (Throwable $e) {
+            logger()->error('Unhandled Exception: ' . $e->getMessage(), [
+                'exception' => $e,
+            ]);
+        });
     })->withCommands(
         (array)CleanupUnverifiedUsers::class,
     )->withSchedule(
