@@ -19,10 +19,11 @@ return [
     'middleware' => [
 //        'authenticate_session' => Laravel\Sanctum\Http\Middleware\AuthenticateSession::class,
         'encrypt_cookies' => Illuminate\Cookie\Middleware\EncryptCookies::class,
+        'verify_csrf_token' => Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class,
 //        'validate_csrf_token' => Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class,
     ],
     'cookie' => [
-        'name' => 'goat_session',
+        'name' => 'grocery_session',
         'domain' => null,
         'path' => '/',
         'secure' => false,

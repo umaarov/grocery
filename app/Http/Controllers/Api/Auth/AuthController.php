@@ -123,46 +123,62 @@ class AuthController extends Controller
 
     public function login(Request $request): JsonResponse
     {
-        $validator = Validator::make($request->all(), [
-            'email' => 'required|string|email',
-            'password' => 'required|string',
-            'device_name' => 'required|string',
-        ]);
+        try {
+            $validator = Validator::make($request->all(), [
+                'email' => 'required|string|email',
+                'password' => 'required|string',
+                'device_name' => 'required|string',
+            ]);
 
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
-        }
-
-        $credentials = $request->only('email', 'password');
-
-        if (Auth::attempt($credentials)) {
-            $user = Auth::user();
-
-            if (!$user->hasVerifiedEmail()) {
-                // Auth::logout();
-                return response()->json(['message' => 'Email not verified. Please check your email.'], 403);
+            if ($validator->fails()) {
+                return response()->json(['errors' => $validator->errors()], 422);
             }
 
-            $user->tokens()->where('name', $request->device_name)->delete();
+            $credentials = $request->only('email', 'password');
 
-            $token = $user->createToken($request->device_name)->plainTextToken;
+            if (Auth::attempt($credentials)) {
+                $user = Auth::user();
 
-            Log::debug('Generated Token: ', ['token' => $token]);
+                if (!$user->hasVerifiedEmail()) {
+                    // Auth::logout();
+                    return response()->json(['message' => 'Email not verified. Please check your email.'], 403);
+                }
 
-            $user->makeHidden(['email_verification_token']);
+                $user->tokens()->where('name', $request->device_name)->delete();
 
-            return response()->json([
-                'message' => 'Logged in successfully!',
-                'user' => $user,
-                'token_type' => 'Bearer',
-                'access_token' => $token,
-            ], 200);
-        } else {
-            Log::warning('API Failed login attempt', ['email' => $request->email, 'ip' => $request->ip()]);
-            return response()->json(['message' => 'Invalid login credentials.'], 401);
+                try {
+                    $token = $user->createToken($request->device_name)->plainTextToken;
+
+                    Log::debug('Generated Token: ', ['token' => $token]);
+
+                    $user->makeHidden(['email_verification_token']);
+
+                    return response()->json([
+                        'message' => 'Logged in successfully!',
+                        'user' => $user,
+                        'token_type' => 'Bearer',
+                        'access_token' => $token,
+                    ], 200);
+                } catch (Exception $tokenEx) {
+                    Log::error('Failed to create token: ' . $tokenEx->getMessage(), [
+                        'user_id' => $user->id,
+                        'trace' => $tokenEx->getTraceAsString()
+                    ]);
+                    return response()->json(['message' => 'Authentication error. Please try again.'], 500);
+                }
+            } else {
+                Log::warning('API Failed login attempt', ['email' => $request->email, 'ip' => $request->ip()]);
+                return response()->json(['message' => 'Invalid login credentials.'], 401);
+            }
+        } catch (Exception $e) {
+            Log::error('API Login failed: ' . $e->getMessage(), [
+                'email' => $request->email,
+                'trace' => $e->getTraceAsString(),
+                'ip' => $request->ip()
+            ]);
+            return response()->json(['message' => 'Login failed: ', $e->getMessage()], 500);
         }
     }
-
 
     public function logout(Request $request): JsonResponse
     {
