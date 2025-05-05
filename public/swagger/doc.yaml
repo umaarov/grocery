@@ -1,0 +1,490 @@
+openapi: 3.0.0
+info:
+  title: Grocery API
+  version: 1.0.0
+servers:
+  - url: /api
+
+tags:
+  - name: Authentication
+
+paths:
+  /register:
+    post:
+      tags:
+        - Authentication
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - first_name
+                - email
+                - password
+                - password_confirmation
+              properties:
+                first_name:
+                  type: string
+                  example: Cristiano
+                  description: First name.
+                last_name:
+                  type: string
+                  example: Messi
+                  description: Last name (optional).
+                email:
+                  type: string
+                  format: email
+                  example: user@gmail.com
+                  description: Email address.
+                password:
+                  type: string
+                  format: password
+                  minLength: 8
+                  example: 'password123'
+                  description: Password (min 8 characters).
+                password_confirmation:
+                  type: string
+                  format: password
+                  example: 'password123'
+                  description: Password Confirmation.
+                profile_picture:
+                  type: string
+                  format: binary
+                  description: Optional user profile picture (jpg, png, gif, webp, max 2MB). If not provided, an initial avatar will be generated.
+      responses:
+        '201':
+          description: Registration successful. Verification email sent.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Registration successful! Please check your email to verify your account.
+                  user:
+                    $ref: '#/components/schemas/User'
+        '422':
+          description: Validation Error (e.g., email taken, password too short)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '500':
+          description: Internal Server Error during registration.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerError'
+
+  /login:
+    post:
+      tags:
+        - Authentication
+      summary: Log in a user
+      description: Authenticates a user and returns a Sanctum API token.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+                - device_name
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: user@gmail.com
+                password:
+                  type: string
+                  format: password
+                  example: 'password123'
+                device_name:
+                  type: string
+                  example: 'my device'
+                  description: A name for the token, identifying the device/client.
+      responses:
+        '200':
+          description: Login Successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Logged in successfully!
+                  user:
+                    $ref: '#/components/schemas/User'
+                  token_type:
+                    type: string
+                    example: Bearer
+                  access_token:
+                    type: string
+                    example: '1|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+        '401':
+          description: Invalid login credentials.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleMessage'
+                example:
+                  message: Invalid login credentials.
+        '403':
+          description: Email not verified.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleMessage'
+                example:
+                  message: Email not verified. Please check your email.
+        '422':
+          description: Validation Error (e.g., missing fields)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '500':
+          description: Internal Server Error during login.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerError'
+
+  /email/verify/{id}/{token}:
+    get:
+      tags:
+        - Authentication
+      summary: Verify user email address
+      description: Verifies user email using the ID and token from the verification link. Requires signed URL parameters (`expires`, `signature`).
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The user ID.
+          schema:
+            type: integer
+            example: 1
+        - name: token
+          in: path
+          required: true
+          description: The email verification token.
+          schema:
+            type: string
+            example: 'a1b2c3d4e5f6...'
+        - name: expires
+          in: query
+          required: true
+          description: Expiration timestamp (added by Laravel's signed URL feature).
+          schema:
+            type: integer
+            example: 1678886400
+        - name: signature
+          in: query
+          required: true
+          description: Signature hash (added by Laravel's signed URL feature).
+          schema:
+            type: string
+            example: 'abcdef123456...'
+      responses:
+        '200':
+          description: Email verified successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleMessage'
+                example:
+                  message: Email verified successfully! You can now log in.
+        '400':
+          description: Email already verified or invalid token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleMessage'
+                examples:
+                  already_verified:
+                    value: { message: 'Email already verified.' }
+                  invalid_token:
+                    value: { message: 'Invalid verification token.' }
+        '401':
+          description: Invalid or expired verification link (signature mismatch).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleMessage'
+                example:
+                  message: Invalid or expired verification link.
+        '404':
+          description: User not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleMessage'
+                example:
+                  message: User not found.
+
+  /auth/google/redirect:
+    get:
+      tags:
+        - Authentication
+      summary: Get Google OAuth redirect URL
+      description: Returns the URL to redirect the user to for Google authentication.
+      responses:
+        '200':
+          description: Google redirect URL provided successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  redirect_url:
+                    type: string
+                    format: url
+                    example: 'https://accounts.google.com/o/oauth2/auth?client_id=...'
+        '500':
+          description: Failed to generate Google redirect URL.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleMessage'
+                example:
+                  message: Google authentication failed. Please try again.
+
+  /auth/google/callback:
+    get:
+      tags:
+        - Authentication
+      summary: Handle Google OAuth callback
+      description: Handles the callback from Google after user authentication. **Note:** This endpoint is typically not called directly by API clients, but by the user's browser after redirecting from Google. It then redirects the browser again to the frontend application.
+      parameters:
+        - name: code
+          in: query
+          required: true
+          description: The authorization code provided by Google.
+          schema:
+            type: string
+        - name: state
+          in: query
+          description: The state parameter if provided in the initial redirect (though 'stateless' is used here).
+          schema:
+            type: string
+      responses:
+        '302':
+          description: Redirect to Frontend. The browser is redirected to your frontend URL (`config('app.frontend_url')`) with token and user info in the URL fragment (`#token=...&user=...`) on success, or to `/auth/error?message=...` on failure. **No JSON body is returned.**
+        '500':
+          description: Internal Server Error during Google callback processing. The user is redirected to the frontend error page. **No JSON body is returned.**
+
+  /logout:
+    post:
+      tags:
+        - Authentication
+      summary: Log out the current user
+      description: Invalidates the current user's API token (the one used for the request).
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '200':
+          description: Logout successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleMessage'
+                example:
+                  message: Logged out successfully!
+        '401':
+          description: Unauthenticated (no valid token provided).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleMessage'
+                example:
+                  message: Unauthenticated.
+        '500':
+          description: Internal Server Error during logout.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleMessage'
+                example:
+                  message: Logout failed. Please try again.
+
+  /email/resend:
+    post:
+      tags:
+        - Authentication
+      summary: Resend email verification link
+      description: Sends a new verification email to the authenticated user if their email is not yet verified.
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '200':
+          description: Verification email sent successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleMessage'
+                example:
+                  message: Verification link sent! Please check your email.
+        '400':
+          description: Email is already verified.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleMessage'
+                example:
+                  message: Email already verified.
+        '401':
+          description: Unauthenticated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleMessage'
+                example:
+                  message: Unauthenticated.
+        '500':
+          description: Failed to send verification email.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleMessage'
+                example:
+                  message: Failed to send verification email. Please try again later.
+
+  /user:
+    get:
+      tags:
+        - Authentication
+      summary: Get authenticated user details
+      description: Retrieves the details of the currently authenticated user.
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '200':
+          description: User data retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: User data retrieved successfully.
+                  user:
+                    $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthenticated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleMessage'
+                example:
+                  message: Unauthenticated.
+        '404':
+          description: User not found (should be rare if authenticated).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleMessage'
+                example:
+                  message: User not found.
+        '500':
+          description: Internal Server Error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerError'
+
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+          description: User's unique identifier.
+        first_name:
+          type: string
+          example: Cristiano
+        last_name:
+          type: string
+          nullable: true
+          example: Messi
+        email:
+          type: string
+          format: email
+          example: user@gmail.com
+        profile_picture:
+          type: string
+          format: url
+          nullable: true
+          example: 'http://yourdomain.com/storage/profile_pictures/avatar.png'
+          description: URL to the user's profile picture.
+        email_verified_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: '2025-05-05T12:00:00.000000Z'
+          description: Timestamp when the user's email was verified. Null if not verified.
+        google_id:
+          type: string
+          nullable: true
+          example: '109876543210987654321'
+          description: User's Google ID if linked/registered via Google.
+        created_at:
+          type: string
+          format: date-time
+          example: '2025-05-05T10:30:00.000000Z'
+        updated_at:
+          type: string
+          format: date-time
+          example: '2025-05-05T11:00:00.000000Z'
+
+    ValidationError:
+      type: object
+      properties:
+        errors:
+          type: object
+          description: Contains validation errors for specific fields.
+          additionalProperties:
+            type: array
+            items:
+              type: string
+          example:
+            email:
+              - The email has already been taken.
+            password:
+              - The password must be at least 8 characters.
+              - The password confirmation does not match.
+
+    ServerError:
+      type: object
+      properties:
+        message:
+          type: string
+          example: 'Registration failed.' # Or Login failed
+        error:
+          type: string
+          example: 'Specific error message from the exception (may not always be present or detailed in production).'
+
+    SimpleMessage:
+      type: object
+      properties:
+        message:
+          type: string
+          example: 'Operation successful.'
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Sanctum # JWT
+      description: "Enter 'Bearer <token>' to authenticate requests for protected endpoints."
+
+# - bearerAuth: []
