@@ -3,10 +3,15 @@ info:
   title: Grocery API
   version: 1.0.0
 servers:
-  - url: HTTP
+  - url: api
 
 tags:
   - name: Authentication
+    description: User authentication and management
+  - name: Products
+    description: Operations related to products
+  - name: Categories
+    description: Operations related to product categories
 
 paths:
   /register:
@@ -180,14 +185,14 @@ paths:
             example: 'a1b2c3d4e5f6...'
         - name: expires
           in: query
-          required: true
+          required: true # Note: This parameter is part of Laravel's signed URL feature and might not need to be explicitly sent by the client if they use the full URL from the email.
           description: Expiration timestamp (added by Laravel's signed URL feature).
           schema:
             type: integer
             example: 1678886400
         - name: signature
           in: query
-          required: true
+          required: true # Note: This parameter is part of Laravel's signed URL feature.
           description: Signature hash (added by Laravel's signed URL feature).
           schema:
             type: string
@@ -400,6 +405,416 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerError'
 
+  /products:
+    get:
+      tags:
+        - Products
+      summary: List products
+      description: Retrieve a paginated list of products. Supports filtering, sorting, and searching.
+      parameters:
+        - name: category_id
+          in: query
+          description: Filter products by category ID.
+          schema:
+            type: integer
+            example: 1
+        - name: featured
+          in: query
+          description: Filter for featured products.
+          schema:
+            type: boolean
+            example: true
+        - name: new
+          in: query
+          description: Filter for new products.
+          schema:
+            type: boolean
+            example: true
+        - name: organic
+          in: query
+          description: Filter for organic products.
+          schema:
+            type: boolean
+            example: true
+        - name: min_price
+          in: query
+          description: Filter by minimum price.
+          schema:
+            type: number
+            format: double
+            example: 10.50
+        - name: max_price
+          in: query
+          description: Filter by maximum price.
+          schema:
+            type: number
+            format: double
+            example: 50.00
+        - name: search
+          in: query
+          description: Search term for product name or description.
+          schema:
+            type: string
+            example: "apple"
+        - name: sort_by
+          in: query
+          description: Field to sort by.
+          schema:
+            type: string
+            enum: [ name, price, created_at ]
+            default: created_at
+        - name: sort_order
+          in: query
+          description: Sort order.
+          schema:
+            type: string
+            enum: [ asc, desc ]
+            default: desc
+        - name: page
+          in: query
+          description: Page number for pagination.
+          schema:
+            type: integer
+            default: 1
+            example: 1
+        - name: per_page
+          in: query
+          description: Number of items per page.
+          schema:
+            type: integer
+            default: 10
+            example: 10
+      responses:
+        '200':
+          description: Products retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Products retrieved successfully
+                  data:
+                    $ref: '#/components/schemas/PaginatedProducts'
+        '500':
+          description: Failed to retrieve products.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerError'
+
+  /products/{id}:
+    get:
+      tags:
+        - Products
+      summary: Get a specific product
+      description: Retrieve details of a specific product by its ID, including its category and reviews.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID of the product to retrieve.
+          schema:
+            type: integer # Assuming product ID is an integer
+            example: 1
+      responses:
+        '200':
+          description: Product retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Product retrieved successfully
+                  data:
+                    $ref: '#/components/schemas/Product'
+        '404':
+          description: Product not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleMessage'
+                example:
+                  message: Product not found
+        '500':
+          description: Failed to retrieve product.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerError'
+
+  /products/{id}/review:
+    post:
+      tags:
+        - Products
+      summary: Add or update product review
+      description: Add or update a review for a specific product. Requires authentication.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID of the product to review.
+          schema:
+            type: integer
+            example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - rating
+              properties:
+                rating:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                  example: 4
+                  description: Rating from 1 to 5.
+                comment:
+                  type: string
+                  maxLength: 500
+                  nullable: true
+                  example: "This product is great!"
+                  description: Optional comment for the review.
+      responses:
+        '200':
+          description: Review added or updated successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Review added successfully
+                  data:
+                    $ref: '#/components/schemas/ProductReview'
+        '401':
+          description: Unauthenticated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleMessage'
+                example:
+                  message: Unauthenticated.
+        '404':
+          description: Product not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleMessage'
+                example:
+                  message: Product not found.
+        '422':
+          description: Validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '500':
+          description: Failed to add review.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerError'
+
+  /products/{id}/favorite:
+    post:
+      tags:
+        - Products
+      summary: Toggle product favorite status
+      description: Add or remove a product from the authenticated user's favorites. Requires authentication.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID of the product to toggle favorite status.
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: Favorite status updated successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Product added to favorites
+                  is_favorited:
+                    type: boolean
+                    example: true
+        '401':
+          description: Unauthenticated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleMessage'
+                example:
+                  message: Unauthenticated.
+        '404':
+          description: Product not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleMessage'
+                example:
+                  message: Product not found.
+        '500':
+          description: Failed to update favorite status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerError'
+
+  /favorites:
+    get:
+      tags:
+        - Products
+      summary: Get user's favorite products
+      description: Retrieve a paginated list of the authenticated user's favorite products. Requires authentication.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: page
+          in: query
+          description: Page number for pagination.
+          schema:
+            type: integer
+            default: 1
+            example: 1
+        - name: per_page
+          in: query
+          description: Number of items per page (controller uses 10 by default for favorites).
+          schema:
+            type: integer
+            default: 10 # As per ProductController's paginate(10)
+            example: 10
+      responses:
+        '200':
+          description: Favorites retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Favorites retrieved successfully
+                  data:
+                    $ref: '#/components/schemas/PaginatedProducts' # Favorites are products
+        '401':
+          description: Unauthenticated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleMessage'
+                example:
+                  message: Unauthenticated.
+        '500':
+          description: Failed to retrieve favorites.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerError'
+
+  /categories:
+    get:
+      tags:
+        - Categories
+      summary: List categories
+      description: Retrieve a list of all product categories, including the count of products in each.
+      responses:
+        '200':
+          description: Categories retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Categories retrieved successfully
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Category' # Category schema includes products_count
+        '500':
+          description: Failed to retrieve categories.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerError'
+
+  /categories/{id}:
+    get:
+      tags:
+        - Categories
+      summary: Get a specific category and its products
+      description: Retrieve details of a specific category by its ID, and a paginated list of its associated products.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID of the category to retrieve.
+          schema:
+            type: integer # Assuming category ID is an integer
+            example: 1
+        - name: page
+          in: query
+          description: Page number for product pagination.
+          schema:
+            type: integer
+            default: 1
+            example: 1
+        - name: per_page
+          in: query
+          description: Number of products per page.
+          schema:
+            type: integer
+            default: 10
+            example: 10
+      responses:
+        '200':
+          description: Category and products retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Category retrieved successfully
+                  category:
+                    $ref: '#/components/schemas/Category' # The category object itself
+                  products:
+                    $ref: '#/components/schemas/PaginatedProducts' # Paginated products of this category
+        '404':
+          description: Category not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleMessage'
+                example:
+                  message: Category not found
+        '500':
+          description: Failed to retrieve category.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerError'
+
 components:
   schemas:
     User:
@@ -424,7 +839,7 @@ components:
           type: string
           format: url
           nullable: true
-          example: 'http://yourdomain.com/storage/profile_pictures/avatar.png'
+          example: '/storage/profile_pictures/avatar.png'
           description: URL to the user's profile picture.
         email_verified_at:
           type: string
@@ -446,9 +861,221 @@ components:
           format: date-time
           example: '2025-05-05T11:00:00.000000Z'
 
+    Product:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: "Organic Banana"
+        description:
+          type: string
+          nullable: true
+          example: "Fresh and ripe organic bananas."
+        price:
+          type: number
+          format: double
+          example: 2.99
+        image_url:
+          type: string
+          format: url
+          nullable: true
+          example: "/storage/products/banana.jpg"
+          description: URL of the product image.
+        category_id:
+          type: integer
+          example: 1
+        is_featured:
+          type: boolean
+          example: true
+        is_new:
+          type: boolean
+          example: false
+        is_organic:
+          type: boolean
+          example: true
+        category:
+          $ref: '#/components/schemas/CategoryBasicInfo'
+          nullable: true
+        reviews:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductReview'
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          example: '2025-05-06T10:30:00.000000Z'
+        updated_at:
+          type: string
+          format: date-time
+          example: '2025-05-06T11:00:00.000000Z'
+
+    Category:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: "Fruits"
+        slug:
+          type: string
+          example: "fruits"
+        description:
+          type: string
+          nullable: true
+          example: "All kinds of fresh fruits."
+        image_url:
+          type: string
+          format: url
+          nullable: true
+          example: "/storage/categories/fruits.jpg"
+          description: URL of the category image.
+        products_count:
+          type: integer
+          example: 15
+          description: "Number of products in this category. Primarily available when listing all categories."
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          example: '2025-05-01T09:00:00.000000Z'
+        updated_at:
+          type: string
+          format: date-time
+          example: '2025-05-01T09:30:00.000000Z'
+
+    CategoryBasicInfo:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: "Fruits"
+        slug:
+          type: string
+          example: "fruits"
+
+    ProductReview:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 101
+        product_id:
+          type: integer
+          example: 1
+        user_id:
+          type: integer
+          example: 5
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+          example: 5
+        comment:
+          type: string
+          nullable: true
+          maxLength: 500
+          example: "Great product!"
+        user:
+          $ref: '#/components/schemas/User'
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          example: '2025-05-07T14:20:00.000000Z'
+        updated_at:
+          type: string
+          format: date-time
+          example: '2025-05-07T14:25:00.000000Z'
+
+    PaginationLink:
+      type: object
+      properties:
+        url:
+          type: string
+          format: url
+          nullable: true
+          example: "http://localhost/api/products?page=1"
+        label:
+          type: string
+          example: "&laquo; Previous"
+        active:
+          type: boolean
+          example: false
+
+    PaginatedResponseBase:
+      type: object
+      properties:
+        current_page:
+          type: integer
+          example: 1
+        first_page_url:
+          type: string
+          format: url
+          example: "http://localhost/api/products?page=1"
+        from:
+          type: integer
+          nullable: true
+          example: 1
+        last_page:
+          type: integer
+          example: 5
+        last_page_url:
+          type: string
+          format: url
+          example: "http://localhost/api/products?page=5"
+        links:
+          type: array
+          items:
+            $ref: '#/components/schemas/PaginationLink'
+        next_page_url:
+          type: string
+          format: url
+          nullable: true
+          example: "http://localhost/api/products?page=2"
+        path:
+          type: string
+          format: url
+          example: "http://localhost/api/products"
+        per_page:
+          type: integer
+          example: 10
+        prev_page_url:
+          type: string
+          format: url
+          nullable: true
+        to:
+          type: integer
+          nullable: true
+          example: 10
+        total:
+          type: integer
+          example: 50
+
+    PaginatedProducts:
+      allOf:
+        - $ref: '#/components/schemas/PaginatedResponseBase'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/Product'
+
     ValidationError:
       type: object
       properties:
+        message:
+          type: string
+          example: The given data was invalid.
         errors:
           type: object
           description: Contains validation errors for specific fields.
@@ -462,15 +1089,18 @@ components:
             password:
               - The password must be at least 8 characters.
               - The password confirmation does not match.
+            rating:
+              - The rating field is required.
 
     ServerError:
       type: object
       properties:
         message:
           type: string
-          example: 'Registration failed.' # Or Login failed
+          example: 'Internal Server Error.'
         error:
           type: string
+          nullable: true
           example: 'Specific error message from the exception (may not always be present or detailed in production).'
 
     SimpleMessage:
@@ -484,7 +1114,8 @@ components:
     bearerAuth:
       type: http
       scheme: bearer
-      bearerFormat: Sanctum # JWT
-      description: "Enter 'Bearer <token>' to authenticate requests for protected endpoints."
+      bearerFormat: Sanctum
+      description: "Enter 'Bearer <token>' to authenticate requests for protected endpoints. Get the token from the /login endpoint."
 
-# - bearerAuth: []
+security:
+  - bearerAuth: [ ]
