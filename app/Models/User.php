@@ -79,4 +79,9 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->favorites()->where('product_id', $product->id)->exists();
     }
 
+    public function cart()
+    {
+        return $this->hasOne(Cart::class);
+    }
+
 }

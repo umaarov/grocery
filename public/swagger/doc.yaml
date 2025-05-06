@@ -815,6 +815,264 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerError'
 
+  /cart:
+    get:
+      tags:
+        - Cart
+      summary: Get the current user's cart
+      description: Retrieves the authenticated user's cart with all items and totals
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '200':
+          description: Cart retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartResponse'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Unauthenticated."
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+
+    delete:
+      tags:
+        - Cart
+      summary: Clear the cart
+      description: Removes all items from the authenticated user's cart
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '200':
+          description: Cart cleared successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Cart cleared successfully"
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Unauthenticated."
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /cart/items:
+    post:
+      tags:
+        - Cart
+      summary: Add item to cart
+      description: Add a product to the authenticated user's cart
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - product_id
+                - quantity
+              properties:
+                product_id:
+                  type: integer
+                  example: 2
+                quantity:
+                  type: integer
+                  example: 1
+                  minimum: 1
+      responses:
+        '200':
+          description: Product added to cart or quantity updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartItemResponse'
+        '400':
+          description: Not enough product in stock
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Not enough product in stock"
+                  available_stock:
+                    type: integer
+                    example: 5
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Unauthenticated."
+        '404':
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /cart/items/{itemId}:
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID of the cart item
+          example: 1
+      put:
+        tags:
+          - Cart
+        summary: Update cart item quantity
+        description: Update the quantity of an item in the authenticated user's cart
+        security:
+          - bearerAuth: [ ]
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - quantity
+                properties:
+                  quantity:
+                    type: integer
+                    example: 3
+                    minimum: 1
+        responses:
+          '200':
+            description: Cart item updated successfully
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/CartItemResponse'
+          '400':
+            description: Not enough product in stock
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    message:
+                      type: string
+                      example: "Not enough product in stock"
+                    available_stock:
+                      type: integer
+                      example: 5
+          '401':
+            description: Unauthenticated
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    message:
+                      type: string
+                      example: "Unauthenticated."
+          '404':
+            description: Cart item not found
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/Error'
+          '422':
+            description: Validation error
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/ValidationError'
+          '500':
+            description: Server error
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/Error'
+      delete:
+        tags:
+          - Cart
+        summary: Remove item from cart
+        description: Remove an item from the authenticated user's cart
+        security:
+          - bearerAuth: [ ]
+        responses:
+          '200':
+            description: Item removed from cart successfully
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    message:
+                      type: string
+                      example: "Item removed from cart successfully"
+          '401':
+            description: Unauthenticated
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    message:
+                      type: string
+                      example: "Unauthenticated."
+          '404':
+            description: Cart item not found
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/Error'
+          '500':
+            description: Server error
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/Error'
+
 components:
   schemas:
     User:
@@ -869,49 +1127,131 @@ components:
           example: 1
         name:
           type: string
-          example: "Organic Banana"
-        description:
-          type: string
-          nullable: true
-          example: "Fresh and ripe organic bananas."
+          example: "Fresh Broccoli"
         price:
           type: number
-          format: double
-          example: 2.99
-        image_url:
+          format: float
+          example: 3.00
+        unit:
           type: string
-          format: url
-          nullable: true
-          example: "/storage/products/banana.jpg"
-          description: URL of the product image.
-        category_id:
-          type: integer
-          example: 1
+          example: "kg"
+        unit_value:
+          type: number
+          format: float
+          example: 1.0
+        image:
+          type: string
+          example: "products/broccoli.jpg"
         is_featured:
           type: boolean
-          example: true
+          example: false
         is_new:
           type: boolean
-          example: false
+          example: true
         is_organic:
           type: boolean
           example: true
-        category:
-          $ref: '#/components/schemas/CategoryBasicInfo'
-          nullable: true
-        reviews:
-          type: array
-          items:
-            $ref: '#/components/schemas/ProductReview'
-          nullable: true
+        discount_percentage:
+          type: integer
+          example: 0
+        original_price:
+          type: number
+          format: float
+          example: 3.00
+        stock:
+          type: integer
+          example: 100
+        category_id:
+          type: integer
+          example: 1
+        average_rating:
+          type: number
+          format: float
+          example: 4.5
+        reviews_count:
+          type: integer
+          example: 10
+
+    CartItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        cart_id:
+          type: integer
+          example: 1
+        product_id:
+          type: integer
+          example: 2
+        quantity:
+          type: integer
+          example: 3
+        price:
+          type: number
+          format: float
+          example: 7.00
         created_at:
           type: string
           format: date-time
-          example: '2025-05-06T10:30:00.000000Z'
         updated_at:
           type: string
           format: date-time
-          example: '2025-05-06T11:00:00.000000Z'
+        product:
+          $ref: '#/components/schemas/Product'
+
+    Cart:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        user_id:
+          type: integer
+          example: 5
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CartItem'
+
+    CartResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Cart retrieved successfully"
+        data:
+          type: object
+          properties:
+            cart:
+              $ref: '#/components/schemas/Cart'
+            subtotal:
+              type: number
+              format: float
+              example: 56.70
+            shipping_charges:
+              type: number
+              format: float
+              example: 1.50
+            total:
+              type: number
+              format: float
+              example: 58.20
+
+    CartItemResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Product added to cart"
+        data:
+          $ref: '#/components/schemas/CartItem'
 
     Category:
       type: object
@@ -1091,6 +1431,10 @@ components:
               - The password confirmation does not match.
             rating:
               - The rating field is required.
+            product_id:
+              - The product id field is required.
+            quantity:
+              - The quantity must be at least 1.
 
     ServerError:
       type: object
