@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\Auth\AuthController;
+use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\ProductController;
 use Illuminate\Http\JsonResponse;
@@ -35,6 +36,14 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('/products/{id}/favorite', [ProductController::class, 'toggleFavorite']);
     Route::get('/favorites', [ProductController::class, 'getFavorites']);
+});
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/cart', [CartController::class, 'getCart']);
+    Route::post('/cart/items', [CartController::class, 'addItem']);
+    Route::put('/cart/items/{itemId}', [CartController::class, 'updateItemQuantity']);
+    Route::delete('/cart/items/{itemId}', [CartController::class, 'removeItem']);
+    Route::delete('/cart', [CartController::class, 'clearCart']);
 });
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request): JsonResponse {
