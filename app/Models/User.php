@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Services\EmailVerificationService;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -38,7 +39,7 @@ class User extends Authenticatable implements MustVerifyEmail
         ];
     }
 
-    public function sendEmailVerificationNotification()
+    public function sendEmailVerificationNotification(): void
     {
         $verificationService = app(EmailVerificationService::class);
 
@@ -50,12 +51,12 @@ class User extends Authenticatable implements MustVerifyEmail
         $verificationService->sendVerificationEmail($this, true);
     }
 
-    public function hasVerifiedEmail()
+    public function hasVerifiedEmail(): bool
     {
         return !is_null($this->email_verified_at);
     }
 
-    public function markEmailAsVerified()
+    public function markEmailAsVerified(): bool
     {
         return $this->forceFill([
             'email_verified_at' => $this->freshTimestamp(),
@@ -79,9 +80,24 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->favorites()->where('product_id', $product->id)->exists();
     }
 
-    public function cart()
+    public function cart(): HasOne
     {
         return $this->hasOne(Cart::class);
+    }
+
+    public function orders()
+    {
+        return $this->hasMany(Order::class);
+    }
+
+    public function shippingAddresses()
+    {
+        return $this->hasMany(ShippingAddress::class);
+    }
+
+    public function paymentMethods()
+    {
+        return $this->hasMany(PaymentMethod::class);
     }
 
 }
