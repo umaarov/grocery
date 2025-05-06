@@ -5,7 +5,7 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', function () {
     return response()->json([
         'version' => '1.0.0',
-        'documentation' => url('/docs'),
+        'documentation' => url('/swagger'),
         'framework' => 'Laravel',
         'framework_version' => app()->version(),
         'php_version' => PHP_VERSION,

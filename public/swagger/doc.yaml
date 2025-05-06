@@ -3,7 +3,7 @@ info:
   title: Grocery API
   version: 1.0.0
 servers:
-  - url: /api
+  - url: HTTP
 
 tags:
   - name: Authentication
