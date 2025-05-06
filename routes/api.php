@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Api\Auth\AuthController;
+use App\Http\Controllers\Api\CategoryController;
+use App\Http\Controllers\Api\ProductController;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -21,6 +23,18 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::post('/email/resend', [AuthController::class, 'resendVerificationEmail']);
 //        ->middleware(['throttle:6,1']);
+});
+
+Route::get('/products', [ProductController::class, 'index']);
+Route::get('/products/{id}', [ProductController::class, 'show']);
+Route::get('/categories', [CategoryController::class, 'index']);
+Route::get('/categories/{id}', [CategoryController::class, 'show']);
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/products/{id}/review', [ProductController::class, 'addReview']);
+
+    Route::post('/products/{id}/favorite', [ProductController::class, 'toggleFavorite']);
+    Route::get('/favorites', [ProductController::class, 'getFavorites']);
 });
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request): JsonResponse {
@@ -57,7 +71,7 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request): Jso
             'user' => $user,
         ], 200);
 
-    } catch (\Throwable $e) {
+    } catch (Throwable $e) {
         Log::critical('Unhandled exception in /api/user', [
             'message' => $e->getMessage(),
             'trace' => $e->getTraceAsString(),
