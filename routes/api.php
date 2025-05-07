@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\OrderController;
+use App\Http\Controllers\Api\PaymentMethodController;
 use App\Http\Controllers\Api\ProductController;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -46,7 +47,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/cart/items/{itemId}', [CartController::class, 'removeItem']);
     Route::delete('/cart', [CartController::class, 'clearCart']);
 
-    // Checkout flow
+    Route::get('/payment-methods', [PaymentMethodController::class, 'getPaymentMethods']);
+    Route::post('/payment-methods', [PaymentMethodController::class, 'addPaymentMethod']);
+    Route::put('/payment-methods/{id}', [PaymentMethodController::class, 'updatePaymentMethod']);
+    Route::delete('/payment-methods/{id}', [PaymentMethodController::class, 'deletePaymentMethod']);
+    Route::post('/payment-methods/{id}/default', [PaymentMethodController::class, 'setDefaultPaymentMethod']);
+
     Route::post('/checkout', [OrderController::class, 'checkout']);
     Route::get('/shipping-methods', [OrderController::class, 'getShippingMethods']);
     Route::post('/orders/{orderId}/shipping-method', [OrderController::class, 'setShippingMethod']);
@@ -56,7 +62,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/payment-methods', [OrderController::class, 'getPaymentMethods']);
     Route::post('/orders/{orderId}/payment', [OrderController::class, 'processPayment']);
 
-    // Order management and tracking
     Route::get('/orders', [OrderController::class, 'getOrderHistory']);
     Route::get('/orders/{orderId}', [OrderController::class, 'getOrderDetails']);
     Route::get('/orders/track/{orderNumber}', [OrderController::class, 'trackOrder']);

@@ -128,7 +128,6 @@ class OrderController extends Controller
 
         $shippingMethod = ShippingMethod::findOrFail($request->shipping_method_id);
 
-        // Update order with shipping method and recalculate total
         $order->shipping_method = $shippingMethod->name;
         $order->shipping_charges = $shippingMethod->cost;
         $order->total = $order->subtotal + $shippingMethod->cost;
@@ -174,7 +173,6 @@ class OrderController extends Controller
         try {
             DB::beginTransaction();
 
-            // If this is the default address, unset any existing default
             if ($request->is_default) {
                 $user->shippingAddresses()->update(['is_default' => false]);
             }
@@ -231,7 +229,6 @@ class OrderController extends Controller
             ], 404);
         }
 
-        // Update order with shipping address
         $order->update([
             'shipping_address_id' => $address->id,
             'shipping_name' => $address->name,
